@@ -1,0 +1,6 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 18
+names: ['SUV', 'ambulance', 'auto_rickshaw', 'bike', 'bus', 'car', 'e-rickshaw', 'micro_bus', 'mini_truck', 'police_vehicle', 'school_bus', 'scooter', 'taxi', 'tempo', 'tractor', 'transport_vehicle', 'truck', 'van']
