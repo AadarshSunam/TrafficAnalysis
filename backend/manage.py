@@ -3,6 +3,14 @@
 import os
 import sys
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# ─── Make sibling `pipeline/` importable ─────────────────────────
+BASE_DIR    = os.path.dirname(os.path.abspath(__file__))        # …/FinalYearProject/backend
+PROJECT_DIR = os.path.dirname(BASE_DIR)                         # …/FinalYearProject
+if PROJECT_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_DIR)
+# ─────────────────────────────────────────────────────────────────
 
 def main():
     """Run administrative tasks."""
