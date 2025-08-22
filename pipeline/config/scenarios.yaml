@@ -1,0 +1,8 @@
+intersection4:
+  Kalanki: [0.1, 0.9, 0.1, 0.9]
+  Koteshwor: [0.0, 0.1, 0.1, 0.9]
+  Lagankhel: [0.1, 0.9, 0.0, 0.1]
+  Godawari: [0.1, 0.9, 0.9, 1.0]
+two_points:
+  front: [0.0, 1.0, 0.5, 1.0]
+  back: [0.0, 1.0, 0.0, 0.5]
