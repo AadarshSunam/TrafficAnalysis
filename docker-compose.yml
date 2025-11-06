@@ -1,0 +1,146 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: smartparking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Itsmylife@123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /app/entrypoint.sh
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=smartparking
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Itsmylife@123
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - PYTHONPATH=/app:/app/backend
+      - APP_PORT=8000
+    volumes:
+      - ./backend:/app/backend:rw
+      - ./pipeline:/app/pipeline:rw
+      - ./requirements.txt:/app/requirements.txt:ro
+      - ./entrypoint.sh:/app/entrypoint.sh:ro
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    depends_on:
+      - db
+      - redis
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8000 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # WAIT only for DB and Redis (remove waiting on hostname 'web' which caused DNS resolution errors)
+    command: /bin/sh -c "until nc -z db 5432; do sleep 0.5; done; until nc -z redis 6379; do sleep 0.5; done; cd /app/backend && celery -A core worker -l info"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=smartparking
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Itsmylife@123
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - PYTHONPATH=/app:/app/backend
+    volumes:
+      - ./backend:/app/backend:rw
+      - ./pipeline:/app/pipeline:rw
+      - ./requirements.txt:/app/requirements.txt:ro
+    networks:
+      - app-network
+    depends_on:
+      - db
+      - redis
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /bin/sh -c "until nc -z db 5432; do sleep 0.5; done; until nc -z redis 6379; do sleep 0.5; done; cd /app/backend && celery -A core beat -l info"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=smartparking
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Itsmylife@123
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - PYTHONPATH=/app:/app/backend
+    volumes:
+      - ./backend:/app/backend:rw
+      - ./pipeline:/app/pipeline:rw
+      - ./requirements.txt:/app/requirements.txt:ro
+    networks:
+      - app-network
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        - REACT_APP_API_URL=http://localhost:8000
+    ports:
+      - "3000:80"
+    networks:
+      - app-network
+    depends_on:
+      - web
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:
+    driver: bridge

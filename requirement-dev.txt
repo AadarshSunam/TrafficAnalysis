@@ -1,0 +1,8 @@
+# requirements-dev.txt
+ipython
+pytest
+pytest-cov
+coverage
+mkdocs
+mkdocs-material
+watchdog

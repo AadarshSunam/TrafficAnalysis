@@ -40,4 +40,8 @@ urlpatterns = [
 
     # Streaming endpoint
     path("api/stream/<int:pk>/", stream_source, name="stream_source"),
+    
+    # NEW: Alerts endpoints
+    path("api/alerts/", include("trafficapp.urls")),
+    
 ]

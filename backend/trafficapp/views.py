@@ -7,13 +7,17 @@ from rest_framework import viewsets, status, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import viewsets, permissions
+from django.db.models import Sum
+from django.db.models.functions import TruncMinute
 
-from .models import Scenario, VideoSource, VehicleCount
+from .models import Scenario, VideoSource, VehicleCount, AlertRule, AlertLog
 from .serializers import (
     ScenarioSerializer,
     VideoSourceSerializer,
     VehicleCountSerializer,
     UserRegistrationSerializer,
+    AlertRuleSerializer, AlertLogSerializer,
 )
 from .services.ingestion_service import ingest_all_sources, ingest_source
 
@@ -115,3 +119,50 @@ def stream_source(request, pk):
     response["Pragma"] = "no-cache"
     response["Expires"] = "0"
     return response
+
+class AlertRuleViewSet(viewsets.ModelViewSet):
+    queryset = AlertRule.objects.all().order_by("-id")
+    serializer_class = AlertRuleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user if self.request.user.is_authenticated else None)
+
+
+class AlertLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = AlertLog.objects.all().order_by("-timestamp")
+    serializer_class = AlertLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def aggregate_counts(request):
+    """
+    GET /api/aggregate_counts/?start=...&end=...&group_by=direction&scenario=...
+    Falls back to summary by direction.
+    """
+    start = request.query_params.get("start")
+    end = request.query_params.get("end")
+    group_by = request.query_params.get("group_by", "direction")
+    scenario = request.query_params.get("scenario")
+
+    qs = VehicleCount.objects.all()
+    if scenario:
+        qs = qs.filter(scenario=scenario)
+    if start:
+        qs = qs.filter(timestamp__gte=start)
+    if end:
+        qs = qs.filter(timestamp__lte=end)
+
+    if group_by == "direction":
+        agg = qs.values("direction").annotate(total=Sum("count")).order_by("-total")
+        return Response(list(agg))
+    elif group_by == "intersection":
+        agg = qs.values("intersection__name").annotate(total=Sum("count")).order_by("-total")
+        return Response(list(agg))
+    else:
+        # fallback time-series: group by minute (simple approach)
+
+        series = qs.annotate(minute=TruncMinute("timestamp")).values("minute").annotate(total=Sum("count")).order_by("minute")
+        return Response(list(series))

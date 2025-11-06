@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Scenario, VideoSource, VehicleCount
+from .models import Scenario, VideoSource, VehicleCount, AlertLog, AlertRule
 
 class ScenarioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -47,4 +47,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             email=validated_data['email'],
             password=validated_data['password']
         )
-    
+
+class AlertRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AlertRule
+        fields = "__all__"
+        read_only_fields = ("created_by", "created_at")
+
+
+class AlertLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AlertLog
+        fields = "__all__"    
